@@ -32,5 +32,7 @@ A production-oriented, premium bilingual automotive experience built with Next.j
 - Add rich text editing, scheduling, media uploads, moderation, and localization workflows.
 
 ## Troubleshooting
-- If you see hydration or `Missing ActionQueueContext` errors in the browser, delete `node_modules`, `.next`, and any lockfile, then reinstall dependencies so the repo uses the pinned React/ReactDOM versions from `package.json`.
-- Recommended reset flow on Windows PowerShell: `Remove-Item -Recurse -Force node_modules, .next` then `npm install` then `npm run dev`.
+- If you see hydration or `Missing ActionQueueContext` errors in the browser, your local install is usually still using the wrong React/ReactDOM versions. Delete `node_modules`, `.next`, and any lockfile, then reinstall so the repo uses the pinned versions from `package.json`.
+- If you use pnpm, also delete `pnpm-lock.yaml` before reinstalling, because pnpm can keep resolving the old React 18.3.x tree from the lockfile.
+- Recommended reset flow on Windows PowerShell with pnpm: `Remove-Item -Recurse -Force node_modules, .next` then `Remove-Item pnpm-lock.yaml -ErrorAction SilentlyContinue` then `pnpm install` then `pnpm dev`.
+- Recommended reset flow on Windows PowerShell with npm: `Remove-Item -Recurse -Force node_modules, .next` then `Remove-Item package-lock.json -ErrorAction SilentlyContinue` then `npm install` then `npm run dev`.
