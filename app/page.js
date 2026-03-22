@@ -18,9 +18,18 @@ export function generateMetadata({ searchParams }) {
 export default function HomePage({ searchParams }) {
   const locale = resolveLocale(searchParams);
 
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'AutoDealer',
+    name: 'BYD Georgia | GT Group',
+    areaServed: 'Georgia',
+    brand: 'BYD',
+    url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+  };
 
   return (
     <PageShell locale={locale} path="/">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
       <Hero locale={locale} hero={homepageContent.hero} />
       <VehicleShowcase locale={locale} vehicles={vehicles} />
       <FeatureGrid locale={locale} kicker="Why BYD" title="Technology credibility, battery leadership, and premium support." description="Designed to help first-time EV buyers quickly understand why BYD matters." items={homepageContent.whyByd} />

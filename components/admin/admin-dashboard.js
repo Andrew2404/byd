@@ -7,23 +7,13 @@ export function AdminDashboard({ snapshot }) {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    try {
-      setLoggedIn(window.localStorage ? window.localStorage.getItem('admin-auth') === 'true' : false);
-    } catch (error) {
-      setLoggedIn(false);
-    }
+    setLoggedIn(localStorage.getItem('admin-auth') === 'true');
   }, []);
 
   const login = async () => {
     const response = await fetch('/api/admin/login', { method: 'POST' });
     const result = await response.json();
-    try {
-      if (window.localStorage) {
-        window.localStorage.setItem('admin-auth', 'true');
-      }
-    } catch (error) {
-      // Ignore storage write failures in restricted environments.
-    }
+    localStorage.setItem('admin-auth', 'true');
     setLoggedIn(true);
     setMessage(result.message);
   };
