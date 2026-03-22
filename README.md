@@ -30,3 +30,7 @@ A production-oriented, premium bilingual automotive experience built with Next.j
 - Replace mocked auth with a real auth provider and role-based permissions.
 - Persist `admin-store` data in a database or headless CMS.
 - Add rich text editing, scheduling, media uploads, moderation, and localization workflows.
+
+## Troubleshooting
+- If you see hydration or `Missing ActionQueueContext` errors in the browser, delete `node_modules`, `.next`, and any lockfile, then reinstall dependencies so the repo uses the pinned React/ReactDOM versions from `package.json`.
+- Recommended reset flow on Windows PowerShell: `Remove-Item -Recurse -Force node_modules, .next` then `npm install` then `npm run dev`.

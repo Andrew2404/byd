@@ -1,5 +1,4 @@
 import './globals.css';
-import { ThemeScript } from '@/components/ui/theme-script';
 
 export const metadata = {
   title: 'BYD Georgia | GT Group',
@@ -9,10 +8,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ka" suppressHydrationWarning>
-      <body>
-        <ThemeScript />
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
