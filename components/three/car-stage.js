@@ -16,14 +16,16 @@ const VIEW_PRESETS = {
     maxPolarAngle: Math.PI / 2.1,
     enablePan: true,
     enableZoom: true,
+    rotateSpeed: 0.3,
+    zoomSpeed: 0.45,
+    panSpeed: 0.4,
+    dampingFactor: 0.16,
   },
   interior: {
     position: [-0.28, 1.20, -0.18],
     target: [-0.14, 1.01, -2.95],
     fov: 82,
-    yawLimit: 0.78,
-    pitchUpLimit: 0.46,
-    pitchDownLimit: 0.58,
+    pitchLimit: Math.PI / 2.1,
     dragSensitivity: 0.004,
     damping: 10,
   },
@@ -42,6 +44,7 @@ const WHEEL_CONFIG_MAP = {
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
+
 
 function getLookAngles(position, target) {
   const direction = new THREE.Vector3().subVectors(new THREE.Vector3(...target), new THREE.Vector3(...position)).normalize();
@@ -288,7 +291,7 @@ function Loader() {
   );
 }
 
-export function CarStage({ vehicle, viewMode, exteriorColor, interiorColorKey, wheelKey, hotspots = [] }) {
+export function CarStage({ vehicle, viewMode, exteriorColor, interiorColorKey, wheelKey }) {
   const controlsRef = useRef(null);
   const preset = VIEW_PRESETS[viewMode] || VIEW_PRESETS.exterior;
   const interiorLookRef = useRef({
@@ -317,15 +320,11 @@ export function CarStage({ vehicle, viewMode, exteriorColor, interiorColorKey, w
 
     interiorLookRef.current.lastX = event.clientX;
     interiorLookRef.current.lastY = event.clientY;
-    interiorLookRef.current.targetYaw = clamp(
-      interiorLookRef.current.targetYaw - deltaX * preset.dragSensitivity,
-      -preset.yawLimit,
-      preset.yawLimit,
-    );
+    interiorLookRef.current.targetYaw += deltaX * preset.dragSensitivity;
     interiorLookRef.current.targetPitch = clamp(
-      interiorLookRef.current.targetPitch - deltaY * preset.dragSensitivity,
-      -preset.pitchUpLimit,
-      preset.pitchDownLimit,
+      interiorLookRef.current.targetPitch + deltaY * preset.dragSensitivity,
+      -preset.pitchLimit,
+      preset.pitchLimit,
     );
   };
 
@@ -334,70 +333,55 @@ export function CarStage({ vehicle, viewMode, exteriorColor, interiorColorKey, w
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-      <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 shadow-glow">
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 text-sm text-white/80">
-          <div className="flex gap-3">
-            <span className="rounded-full border border-white/10 px-3 py-1">{vehicle.name} 3D</span>
-            <span className="rounded-full border border-white/10 px-3 py-1">{viewMode === 'interior' ? 'Interior' : 'Exterior'}</span>
-          </div>
-          <span className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/60">GLB asset</span>
+    <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 shadow-glow">
+      <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 text-sm text-white/80">
+        <div className="flex gap-3">
+          <span className="rounded-full border border-white/10 px-3 py-1">{vehicle.name} 3D</span>
+          <span className="rounded-full border border-white/10 px-3 py-1">{viewMode === 'interior' ? 'Interior' : 'Exterior'}</span>
         </div>
-        <div
-          className={`h-[480px] w-full ${viewMode === 'interior' ? 'cursor-grab active:cursor-grabbing' : ''}`}
-          onMouseDown={handleInteriorPointerDown}
-          onMouseMove={handleInteriorPointerMove}
-          onMouseUp={handleInteriorPointerUp}
-          onMouseLeave={handleInteriorPointerUp}
-        >
-          <Canvas camera={{ position: [5, 2, 5], fov: 35 }} shadows>
-            <CameraRig viewMode={viewMode} controlsRef={controlsRef} />
-            {viewMode === 'interior' ? <InteriorLookRig lookStateRef={interiorLookRef} preset={preset} /> : null}
-            <ambientLight intensity={1.2} />
-            <directionalLight position={[6, 8, 6]} intensity={1.6} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
-            <directionalLight position={[-4, 3, -3]} intensity={0.45} />
-            <Suspense fallback={<Loader />}>
-              <VehicleModel glbPath={vehicle.asset3d.glb} viewMode={viewMode} exteriorColor={exteriorColor} interiorColorKey={interiorColorKey} wheelKey={wheelKey} />
-              <Environment preset="city" />
-            </Suspense>
-            {viewMode === 'exterior' ? (
-              <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]} receiveShadow>
-                <planeGeometry args={[30, 30]} />
-                <shadowMaterial opacity={0.3} />
-              </mesh>
-            ) : null}
-            {viewMode === 'exterior' ? (
-              <OrbitControls
-                ref={controlsRef}
-                enablePan={preset.enablePan}
-                enableZoom={preset.enableZoom}
-                minDistance={preset.minDistance}
-                maxDistance={preset.maxDistance}
-                minPolarAngle={preset.minPolarAngle}
-                maxPolarAngle={preset.maxPolarAngle}
-                target={preset.target}
-                enableDamping
-                dampingFactor={0.08}
-                rotateSpeed={1}
-              />
-            ) : null}
-          </Canvas>
-        </div>
+        <span className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/60">GLB asset</span>
       </div>
-      <div className="premium-card space-y-6">
-        <div>
-          <p className="section-kicker">Configurator controls</p>
-          <h3 className="text-2xl font-semibold">Premium viewing experience</h3>
-          <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">Each Explore page now renders its own production GLB model, with orbit controls and scene fitting so the real assets display consistently across the catalog.</p>
-        </div>
-        <div className="space-y-4">
-          {hotspots.map((hotspot) => (
-            <div key={hotspot.id} className="rounded-2xl border border-slate-200/70 px-4 py-3 text-sm dark:border-white/10">
-              <p className="font-semibold">{hotspot.label}</p>
-              <p className="mt-1 text-slate-500 dark:text-slate-400">Hotspot content is still placeholder copy, but it is now attached to the live vehicle model viewer.</p>
-            </div>
-          ))}
-        </div>
+      <div
+        className={`h-[560px] w-full lg:h-[640px] xl:h-[720px] ${viewMode === 'interior' ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        onMouseDown={handleInteriorPointerDown}
+        onMouseMove={handleInteriorPointerMove}
+        onMouseUp={handleInteriorPointerUp}
+        onMouseLeave={handleInteriorPointerUp}
+      >
+        <Canvas camera={{ position: [5, 2, 5], fov: 35 }} shadows>
+          <CameraRig viewMode={viewMode} controlsRef={controlsRef} />
+          {viewMode === 'interior' ? <InteriorLookRig lookStateRef={interiorLookRef} preset={preset} /> : null}
+          <ambientLight intensity={1.2} />
+          <directionalLight position={[6, 8, 6]} intensity={1.6} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
+          <directionalLight position={[-4, 3, -3]} intensity={0.45} />
+          <Suspense fallback={<Loader />}>
+            <VehicleModel glbPath={vehicle.asset3d.glb} viewMode={viewMode} exteriorColor={exteriorColor} interiorColorKey={interiorColorKey} wheelKey={wheelKey} />
+            <Environment preset="city" />
+          </Suspense>
+          {viewMode === 'exterior' ? (
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]} receiveShadow>
+              <planeGeometry args={[30, 30]} />
+              <shadowMaterial opacity={0.3} />
+            </mesh>
+          ) : null}
+          {viewMode === 'exterior' ? (
+            <OrbitControls
+              ref={controlsRef}
+              enablePan={preset.enablePan}
+              enableZoom={preset.enableZoom}
+              minDistance={preset.minDistance}
+              maxDistance={preset.maxDistance}
+              minPolarAngle={preset.minPolarAngle}
+              maxPolarAngle={preset.maxPolarAngle}
+              target={preset.target}
+              enableDamping
+              dampingFactor={preset.dampingFactor}
+              rotateSpeed={preset.rotateSpeed}
+              zoomSpeed={preset.zoomSpeed}
+              panSpeed={preset.panSpeed}
+            />
+          ) : null}
+        </Canvas>
       </div>
     </div>
   );
