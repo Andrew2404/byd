@@ -104,6 +104,36 @@ function buildDoorInteractions(model) {
   return interactions;
 }
 
+function buildFallbackDoorConfigs(box) {
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const doorThickness = Math.max(size.x * 0.04, 0.08);
+  const doorHeight = size.y * 0.52;
+  const doorLength = size.z * 0.24;
+  const hingeZ = center.z + (size.z * 0.18);
+  const handleZ = -doorLength * 0.55;
+  const doorY = box.min.y + (size.y * 0.52);
+
+  return [
+    {
+      key: 'frontLeft',
+      direction: -1,
+      hingePosition: [box.min.x + (doorThickness * 0.55), doorY, hingeZ],
+      panelPosition: [doorThickness * 0.5, 0, -doorLength * 0.5],
+      handlePosition: [doorThickness * 0.95, 0, handleZ],
+      panelSize: [doorThickness, doorHeight, doorLength],
+    },
+    {
+      key: 'frontRight',
+      direction: 1,
+      hingePosition: [box.max.x - (doorThickness * 0.55), doorY, hingeZ],
+      panelPosition: [doorThickness * -0.5, 0, -doorLength * 0.5],
+      handlePosition: [doorThickness * -0.95, 0, handleZ],
+      panelSize: [doorThickness, doorHeight, doorLength],
+    },
+  ];
+}
+
 
 function getLookAngles(position, target) {
   const direction = new THREE.Vector3().subVectors(new THREE.Vector3(...target), new THREE.Vector3(...position)).normalize();
@@ -247,7 +277,9 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
   const { scene } = useGLTF(glbPath);
   const groupRef = useRef(null);
   const doorInteractionsRef = useRef([]);
+  const proxyDoorRefs = useRef({});
   const [doorStates, setDoorStates] = useState({});
+  const [fallbackDoorConfigs, setFallbackDoorConfigs] = useState([]);
   const model = useMemo(() => scene.clone(true), [scene]);
 
   useLayoutEffect(() => {
@@ -270,6 +302,9 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
 
     model.scale.setScalar(fittedScale);
     model.position.set(-center.x * fittedScale, -box.min.y * fittedScale, -center.z * fittedScale);
+
+    const fittedBox = new THREE.Box3().setFromObject(model);
+    setFallbackDoorConfigs(buildFallbackDoorConfigs(fittedBox));
   }, [model]);
 
   useEffect(() => {
@@ -297,7 +332,27 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
 
       interaction.node.rotation.y = THREE.MathUtils.damp(interaction.node.rotation.y, targetRotationY, 6, delta);
     });
+
+    if (doorInteractionsRef.current.length > 0) return;
+
+    fallbackDoorConfigs.forEach((config) => {
+      const proxyDoor = proxyDoorRefs.current[config.key];
+      if (!proxyDoor) return;
+
+      const targetRotationY = viewMode === 'exterior' && doorStates[config.key]
+        ? config.direction * (Math.PI / 3.5)
+        : 0;
+
+      proxyDoor.rotation.y = THREE.MathUtils.damp(proxyDoor.rotation.y, targetRotationY, 6, delta);
+    });
   });
+
+  const toggleDoor = (doorKey) => {
+    setDoorStates((currentState) => ({
+      ...currentState,
+      [doorKey]: !currentState[doorKey],
+    }));
+  };
 
   const handleDoorToggle = (event) => {
     if (viewMode !== 'exterior') return;
@@ -306,15 +361,38 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
     if (!interaction) return;
 
     event.stopPropagation();
-    setDoorStates((currentState) => ({
-      ...currentState,
-      [interaction.key]: !currentState[interaction.key],
-    }));
+    toggleDoor(interaction.key);
   };
 
   return (
     <group ref={groupRef} rotation={[0, viewMode === 'interior' ? Math.PI : Math.PI / 3, 0]} onClick={handleDoorToggle}>
       <primitive object={model} />
+      {viewMode === 'exterior' && doorInteractionsRef.current.length === 0
+        ? fallbackDoorConfigs.map((config) => (
+            <group
+              key={config.key}
+              position={config.hingePosition}
+              ref={(node) => {
+                if (node) {
+                  proxyDoorRefs.current[config.key] = node;
+                }
+              }}
+            >
+              <mesh position={config.panelPosition} castShadow receiveShadow>
+                <boxGeometry args={config.panelSize} />
+                <meshStandardMaterial color={exteriorColor} metalness={0.35} roughness={0.35} />
+              </mesh>
+              <mesh position={config.handlePosition} castShadow receiveShadow onClick={(event) => {
+                event.stopPropagation();
+                toggleDoor(config.key);
+              }}
+              >
+                <boxGeometry args={[config.panelSize[0] * 0.35, config.panelSize[1] * 0.04, config.panelSize[2] * 0.14]} />
+                <meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.18} />
+              </mesh>
+            </group>
+          ))
+        : null}
     </group>
   );
 }
