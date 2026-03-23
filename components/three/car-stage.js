@@ -45,9 +45,6 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function normalizeAngle(angle) {
-  return THREE.MathUtils.euclideanModulo(angle + Math.PI, Math.PI * 2) - Math.PI;
-}
 
 function getLookAngles(position, target) {
   const direction = new THREE.Vector3().subVectors(new THREE.Vector3(...target), new THREE.Vector3(...position)).normalize();
@@ -323,9 +320,7 @@ export function CarStage({ vehicle, viewMode, exteriorColor, interiorColorKey, w
 
     interiorLookRef.current.lastX = event.clientX;
     interiorLookRef.current.lastY = event.clientY;
-    interiorLookRef.current.targetYaw = normalizeAngle(
-      interiorLookRef.current.targetYaw + deltaX * preset.dragSensitivity,
-    );
+    interiorLookRef.current.targetYaw += deltaX * preset.dragSensitivity;
     interiorLookRef.current.targetPitch = clamp(
       interiorLookRef.current.targetPitch + deltaY * preset.dragSensitivity,
       -preset.pitchLimit,
