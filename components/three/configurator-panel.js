@@ -47,7 +47,14 @@ export function ConfiguratorPanel({ vehicle, locale }) {
           </div>
         </div>
         <div className="xl:col-span-3">
-          <CarStage vehicle={vehicle} color={selectedColor.hex} showInterior={viewMode === 'interior'} wheels={selectedWheel.key} viewMode={viewMode} hotspots={vehicle.asset3d.hotspots.map((item) => ({ ...item, label: item.label[locale] }))} />
+          <CarStage
+            vehicle={vehicle}
+            viewMode={viewMode}
+            exteriorColor={selectedColor.hex}
+            interiorColorKey={selectedInterior.key}
+            wheelKey={selectedWheel.key}
+            hotspots={vehicle.asset3d.hotspots.map((item) => ({ ...item, label: item.label[locale] }))}
+          />
         </div>
       </div>
       <div className="grid gap-6 md:grid-cols-3">
