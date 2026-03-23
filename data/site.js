@@ -262,7 +262,7 @@ const buildVehicle = ({
   gallery,
   heroImage,
   asset3d: {
-    glb: '/models/placeholder-byd.glb',
+    glb: `/models/${slug}/${slug}.glb`,
     poster: heroImage,
     hotspots: [
       { id: 'front', label: { ka: 'LED განათება', en: 'LED signature' }, x: 1.5, y: 0.5, z: 1.2 },
