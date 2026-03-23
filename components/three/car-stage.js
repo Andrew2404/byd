@@ -16,14 +16,16 @@ const VIEW_PRESETS = {
     maxPolarAngle: Math.PI / 2.1,
     enablePan: true,
     enableZoom: true,
+    rotateSpeed: 0.3,
+    zoomSpeed: 0.45,
+    panSpeed: 0.4,
+    dampingFactor: 0.16,
   },
   interior: {
     position: [-0.28, 1.20, -0.18],
     target: [-0.14, 1.01, -2.95],
     fov: 82,
-    yawLimit: 0.78,
-    pitchUpLimit: 0.46,
-    pitchDownLimit: 0.58,
+    pitchLimit: Math.PI / 2.1,
     dragSensitivity: 0.004,
     damping: 10,
   },
@@ -41,6 +43,10 @@ const WHEEL_CONFIG_MAP = {
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+function normalizeAngle(angle) {
+  return THREE.MathUtils.euclideanModulo(angle + Math.PI, Math.PI * 2) - Math.PI;
 }
 
 function getLookAngles(position, target) {
@@ -317,15 +323,13 @@ export function CarStage({ vehicle, viewMode, exteriorColor, interiorColorKey, w
 
     interiorLookRef.current.lastX = event.clientX;
     interiorLookRef.current.lastY = event.clientY;
-    interiorLookRef.current.targetYaw = clamp(
-      interiorLookRef.current.targetYaw - deltaX * preset.dragSensitivity,
-      -preset.yawLimit,
-      preset.yawLimit,
+    interiorLookRef.current.targetYaw = normalizeAngle(
+      interiorLookRef.current.targetYaw + deltaX * preset.dragSensitivity,
     );
     interiorLookRef.current.targetPitch = clamp(
-      interiorLookRef.current.targetPitch - deltaY * preset.dragSensitivity,
-      -preset.pitchUpLimit,
-      preset.pitchDownLimit,
+      interiorLookRef.current.targetPitch + deltaY * preset.dragSensitivity,
+      -preset.pitchLimit,
+      preset.pitchLimit,
     );
   };
 
@@ -377,8 +381,10 @@ export function CarStage({ vehicle, viewMode, exteriorColor, interiorColorKey, w
                 maxPolarAngle={preset.maxPolarAngle}
                 target={preset.target}
                 enableDamping
-                dampingFactor={0.08}
-                rotateSpeed={1}
+                dampingFactor={preset.dampingFactor}
+                rotateSpeed={preset.rotateSpeed}
+                zoomSpeed={preset.zoomSpeed}
+                panSpeed={preset.panSpeed}
               />
             ) : null}
           </Canvas>
