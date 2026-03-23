@@ -2,8 +2,25 @@
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, Html, useGLTF } from '@react-three/drei';
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+
+const DOOR_INTERACTION_PRESETS = [
+  {
+    key: 'frontLeft',
+    direction: 1,
+    openAngle: Math.PI / 3.5,
+    doorHints: ['front_left_door', 'door_front_left', 'left_front_door', 'driver_door', 'door_lf', 'door_fl'],
+    handleHints: ['front_left_handle', 'door_handle_front_left', 'driver_handle', 'handle_lf', 'handle_fl'],
+  },
+  {
+    key: 'frontRight',
+    direction: -1,
+    openAngle: Math.PI / 3.5,
+    doorHints: ['front_right_door', 'door_front_right', 'right_front_door', 'passenger_door', 'door_rf', 'door_fr'],
+    handleHints: ['front_right_handle', 'door_handle_front_right', 'passenger_handle', 'handle_rf', 'handle_fr'],
+  },
+];
 
 const VIEW_PRESETS = {
   exterior: {
@@ -43,6 +60,48 @@ const WHEEL_CONFIG_MAP = {
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+function normalizeNodeName(value) {
+  return `${value || ''}`.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+}
+
+function matchesInteractionHints(object, hints) {
+  const names = [object.name, object.parent?.name]
+    .filter(Boolean)
+    .map((value) => normalizeNodeName(value));
+
+  return hints.some((hint) => names.some((name) => name.includes(hint)));
+}
+
+function buildDoorInteractions(model) {
+  const interactions = [];
+
+  DOOR_INTERACTION_PRESETS.forEach((preset) => {
+    let doorNode = null;
+    let handleNode = null;
+
+    model.traverse((child) => {
+      if (!doorNode && matchesInteractionHints(child, preset.doorHints)) {
+        doorNode = child;
+      }
+
+      if (!handleNode && matchesInteractionHints(child, preset.handleHints)) {
+        handleNode = child;
+      }
+    });
+
+    if (!doorNode || !handleNode) return;
+
+    interactions.push({
+      ...preset,
+      clickTargetUuid: handleNode.uuid,
+      closedRotationY: doorNode.rotation.y,
+      node: doorNode,
+    });
+  });
+
+  return interactions;
 }
 
 
@@ -187,6 +246,8 @@ function applyWheelScale(model, wheelKey) {
 function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, wheelKey }) {
   const { scene } = useGLTF(glbPath);
   const groupRef = useRef(null);
+  const doorInteractionsRef = useRef([]);
+  const [doorStates, setDoorStates] = useState({});
   const model = useMemo(() => scene.clone(true), [scene]);
 
   useLayoutEffect(() => {
@@ -223,8 +284,36 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
     applyWheelScale(model, wheelKey);
   }, [model, wheelKey]);
 
+  useEffect(() => {
+    doorInteractionsRef.current = buildDoorInteractions(model);
+    setDoorStates({});
+  }, [model]);
+
+  useFrame((_, delta) => {
+    doorInteractionsRef.current.forEach((interaction) => {
+      const targetRotationY = viewMode === 'exterior' && doorStates[interaction.key]
+        ? interaction.closedRotationY + (interaction.direction * interaction.openAngle)
+        : interaction.closedRotationY;
+
+      interaction.node.rotation.y = THREE.MathUtils.damp(interaction.node.rotation.y, targetRotationY, 6, delta);
+    });
+  });
+
+  const handleDoorToggle = (event) => {
+    if (viewMode !== 'exterior') return;
+
+    const interaction = doorInteractionsRef.current.find((item) => item.clickTargetUuid === event.object.uuid);
+    if (!interaction) return;
+
+    event.stopPropagation();
+    setDoorStates((currentState) => ({
+      ...currentState,
+      [interaction.key]: !currentState[interaction.key],
+    }));
+  };
+
   return (
-    <group ref={groupRef} rotation={[0, viewMode === 'interior' ? Math.PI : Math.PI / 3, 0]}>
+    <group ref={groupRef} rotation={[0, viewMode === 'interior' ? Math.PI : Math.PI / 3, 0]} onClick={handleDoorToggle}>
       <primitive object={model} />
     </group>
   );
