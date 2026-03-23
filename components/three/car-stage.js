@@ -16,6 +16,10 @@ const VIEW_PRESETS = {
     maxPolarAngle: Math.PI / 2.1,
     enablePan: true,
     enableZoom: true,
+    rotateSpeed: 0.45,
+    zoomSpeed: 0.65,
+    panSpeed: 0.55,
+    dampingFactor: 0.12,
   },
   interior: {
     position: [-0.28, 1.20, -0.18],
@@ -377,8 +381,10 @@ export function CarStage({ vehicle, viewMode, exteriorColor, interiorColorKey, w
                 maxPolarAngle={preset.maxPolarAngle}
                 target={preset.target}
                 enableDamping
-                dampingFactor={0.08}
-                rotateSpeed={1}
+                dampingFactor={preset.dampingFactor}
+                rotateSpeed={preset.rotateSpeed}
+                zoomSpeed={preset.zoomSpeed}
+                panSpeed={preset.panSpeed}
               />
             ) : null}
           </Canvas>
