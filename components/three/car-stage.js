@@ -284,12 +284,6 @@ function buildFakeDoorShells(model, layout = DEFAULT_FAKE_DOOR_LAYOUT) {
   return Object.values(fallbackDoors).filter((door) => door.meshes.length > 0);
 }
 
-// Backward-compat shim for partial/incorrect merges that may still reference
-// the old fallback function name in local branches.
-function buildFallbackDoorConfigs() {
-  return [];
-}
-
 
 function getLookAngles(position, target) {
   const direction = new THREE.Vector3().subVectors(new THREE.Vector3(...target), new THREE.Vector3(...position)).normalize();
@@ -436,7 +430,6 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
   const fakeDoorRefs = useRef({});
   const [doorStates, setDoorStates] = useState({});
   const [fakeDoorShells, setFakeDoorShells] = useState([]);
-  const setFallbackDoorConfigs = setFakeDoorShells;
   const model = useMemo(() => scene.clone(true), [scene]);
 
   useLayoutEffect(() => {
@@ -459,6 +452,9 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
 
     model.scale.setScalar(fittedScale);
     model.position.set(-center.x * fittedScale, -box.min.y * fittedScale, -center.z * fittedScale);
+
+    const fittedBox = new THREE.Box3().setFromObject(model);
+    setFallbackDoorConfigs(buildFallbackDoorConfigs(fittedBox));
   }, [model]);
 
   useEffect(() => {
@@ -487,12 +483,12 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
     doorInteractionsRef.current = buildDoorInteractions(model);
 
     if (doorInteractionsRef.current.length > 0) {
-      setFallbackDoorConfigs([]);
+      setFakeDoorShells([]);
       setDoorStates({});
       return;
     }
 
-    setFallbackDoorConfigs(buildFakeDoorShells(model));
+    setFakeDoorShells(buildFakeDoorShells(model));
     setDoorStates({});
   }, [model]);
 
