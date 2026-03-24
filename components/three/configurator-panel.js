@@ -7,14 +7,17 @@ import { formatCurrency } from '@/lib/utils';
 const DESKTOP_CONTROL_HINTS = [
   {
     label: 'Rotate',
+    description: 'Left click + drag',
     highlight: 'left',
   },
   {
     label: 'Drag',
+    description: 'Right click + drag',
     highlight: 'right',
   },
   {
     label: 'Zoom',
+    description: 'Scroll wheel',
     highlight: 'wheel',
   },
 ];
