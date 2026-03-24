@@ -104,34 +104,184 @@ function buildDoorInteractions(model) {
   return interactions;
 }
 
-function buildFallbackDoorConfigs(box) {
-  const size = box.getSize(new THREE.Vector3());
-  const center = box.getCenter(new THREE.Vector3());
-  const doorThickness = Math.max(size.x * 0.04, 0.08);
-  const doorHeight = size.y * 0.52;
-  const doorLength = size.z * 0.24;
-  const hingeZ = center.z + (size.z * 0.18);
-  const handleZ = -doorLength * 0.55;
-  const doorY = box.min.y + (size.y * 0.52);
+const DEFAULT_FAKE_DOOR_LAYOUT = {
+  // These normalized points are relative to the fitted model bounds and can be
+  // tweaked per vehicle later if a specific shell crop or hinge position needs
+  // adjustment for a different GLB.
+  frontLeft: {
+    openAngle: -Math.PI / 3.1,
+    boundsMin: [0.0, 0.2, 0.45],
+    boundsMax: [0.24, 0.74, 0.76],
+    hingePivot: [0.045, 0.49, 0.76],
+    hotspot: [0.03, 0.5, 0.58],
+    hotspotSize: [0.08, 0.18, 0.16],
+  },
+  frontRight: {
+    openAngle: Math.PI / 3.1,
+    boundsMin: [0.76, 0.2, 0.45],
+    boundsMax: [1.0, 0.74, 0.76],
+    hingePivot: [0.955, 0.49, 0.76],
+    hotspot: [0.97, 0.5, 0.58],
+    hotspotSize: [0.08, 0.18, 0.16],
+  },
+};
 
-  return [
-    {
-      key: 'frontLeft',
-      direction: -1,
-      hingePosition: [box.min.x + (doorThickness * 0.55), doorY, hingeZ],
-      panelPosition: [doorThickness * 0.5, 0, -doorLength * 0.5],
-      handlePosition: [doorThickness * 0.95, 0, handleZ],
-      panelSize: [doorThickness, doorHeight, doorLength],
-    },
-    {
-      key: 'frontRight',
-      direction: 1,
-      hingePosition: [box.max.x - (doorThickness * 0.55), doorY, hingeZ],
-      panelPosition: [doorThickness * -0.5, 0, -doorLength * 0.5],
-      handlePosition: [doorThickness * -0.95, 0, handleZ],
-      panelSize: [doorThickness, doorHeight, doorLength],
-    },
-  ];
+function lerpBoxPoint(box, point) {
+  return new THREE.Vector3(
+    THREE.MathUtils.lerp(box.min.x, box.max.x, point[0]),
+    THREE.MathUtils.lerp(box.min.y, box.max.y, point[1]),
+    THREE.MathUtils.lerp(box.min.z, box.max.z, point[2]),
+  );
+}
+
+function createGeometryFromAttributeArrays(attributeArrays) {
+  if (attributeArrays.position.length === 0) return null;
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(attributeArrays.position, 3));
+
+  if (attributeArrays.normal.length > 0) {
+    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(attributeArrays.normal, 3));
+  }
+
+  if (attributeArrays.uv.length > 0) {
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(attributeArrays.uv, 2));
+  }
+
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+
+  return geometry;
+}
+
+function appendTriangle(attributeArrays, attributes, triangleIndex, transformMatrix, normalMatrix) {
+  const position = attributes.position;
+  const normal = attributes.normal;
+  const uv = attributes.uv;
+  const transformedPosition = new THREE.Vector3();
+  const transformedNormal = new THREE.Vector3();
+
+  for (let vertexOffset = 0; vertexOffset < 3; vertexOffset += 1) {
+    const index = triangleIndex + vertexOffset;
+
+    transformedPosition.fromBufferAttribute(position, index);
+
+    if (transformMatrix) {
+      transformedPosition.applyMatrix4(transformMatrix);
+    }
+
+    attributeArrays.position.push(transformedPosition.x, transformedPosition.y, transformedPosition.z);
+
+    if (normal) {
+      transformedNormal.fromBufferAttribute(normal, index);
+
+      if (normalMatrix) {
+        transformedNormal.applyMatrix3(normalMatrix).normalize();
+      }
+
+      attributeArrays.normal.push(transformedNormal.x, transformedNormal.y, transformedNormal.z);
+    }
+
+    if (uv) {
+      attributeArrays.uv.push(uv.getX(index), uv.getY(index));
+    }
+  }
+}
+
+function buildFakeDoorShells(model, layout = DEFAULT_FAKE_DOOR_LAYOUT) {
+  model.updateWorldMatrix(true, true);
+
+  const modelBox = new THREE.Box3().setFromObject(model);
+  const inverseModelMatrix = model.matrixWorld.clone().invert();
+  const fallbackDoors = Object.entries(layout).reduce((result, [key, config]) => {
+    const bounds = new THREE.Box3(
+      lerpBoxPoint(modelBox, config.boundsMin),
+      lerpBoxPoint(modelBox, config.boundsMax),
+    );
+    const hingePivot = lerpBoxPoint(modelBox, config.hingePivot);
+    const hotspot = lerpBoxPoint(modelBox, config.hotspot);
+    const hotspotScale = modelBox.getSize(new THREE.Vector3());
+
+    result[key] = {
+      key,
+      openAngle: config.openAngle,
+      bounds,
+      hingePivot,
+      hotspot,
+      hotspotSize: [
+        hotspotScale.x * config.hotspotSize[0],
+        hotspotScale.y * config.hotspotSize[1],
+        hotspotScale.z * config.hotspotSize[2],
+      ],
+      meshes: [],
+    };
+
+    return result;
+  }, {});
+  model.traverse((child) => {
+    if (!child.isMesh || Array.isArray(child.material) || !child.geometry || !shouldTintExteriorMaterial(child.material)) return;
+
+    const sourceGeometry = child.geometry.index ? child.geometry.toNonIndexed() : child.geometry.clone();
+    const attributes = {
+      position: sourceGeometry.getAttribute('position'),
+      normal: sourceGeometry.getAttribute('normal'),
+      uv: sourceGeometry.getAttribute('uv'),
+    };
+
+    if (!attributes.position) return;
+
+    const worldToModelMatrix = inverseModelMatrix.clone().multiply(child.matrixWorld);
+    const modelNormalMatrix = new THREE.Matrix3().getNormalMatrix(worldToModelMatrix);
+    const centroid = new THREE.Vector3();
+    const vertex = new THREE.Vector3();
+    const keepTriangles = { position: [], normal: [], uv: [] };
+    const doorTriangles = Object.values(fallbackDoors).reduce((result, door) => {
+      result[door.key] = { position: [], normal: [], uv: [] };
+      return result;
+    }, {});
+
+    for (let triangleIndex = 0; triangleIndex < attributes.position.count; triangleIndex += 3) {
+      centroid.set(0, 0, 0);
+
+      for (let vertexOffset = 0; vertexOffset < 3; vertexOffset += 1) {
+        vertex.fromBufferAttribute(attributes.position, triangleIndex + vertexOffset);
+        vertex.applyMatrix4(worldToModelMatrix);
+        centroid.add(vertex);
+      }
+
+      centroid.multiplyScalar(1 / 3);
+
+      const matchingDoor = Object.values(fallbackDoors).find((door) => door.bounds.containsPoint(centroid));
+
+      if (!matchingDoor) {
+        appendTriangle(keepTriangles, attributes, triangleIndex, null, null);
+        continue;
+      }
+
+      appendTriangle(doorTriangles[matchingDoor.key], attributes, triangleIndex, worldToModelMatrix, modelNormalMatrix);
+    }
+
+    const nextBodyGeometry = createGeometryFromAttributeArrays(keepTriangles);
+
+    if (nextBodyGeometry) {
+      child.geometry.dispose();
+      child.geometry = nextBodyGeometry;
+    } else {
+      child.visible = false;
+    }
+
+    Object.values(fallbackDoors).forEach((door) => {
+      const shellGeometry = createGeometryFromAttributeArrays(doorTriangles[door.key]);
+      if (!shellGeometry) return;
+
+      door.meshes.push({
+        geometry: shellGeometry,
+        material: child.material.clone(),
+      });
+    });
+  });
+
+  return Object.values(fallbackDoors).filter((door) => door.meshes.length > 0);
 }
 
 
@@ -277,9 +427,9 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
   const { scene } = useGLTF(glbPath);
   const groupRef = useRef(null);
   const doorInteractionsRef = useRef([]);
-  const proxyDoorRefs = useRef({});
+  const fakeDoorRefs = useRef({});
   const [doorStates, setDoorStates] = useState({});
-  const [fallbackDoorConfigs, setFallbackDoorConfigs] = useState([]);
+  const [fakeDoorShells, setFakeDoorShells] = useState([]);
   const model = useMemo(() => scene.clone(true), [scene]);
 
   useLayoutEffect(() => {
@@ -312,6 +462,16 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
   }, [exteriorColor, model]);
 
   useEffect(() => {
+    const nextColor = new THREE.Color(exteriorColor);
+
+    fakeDoorShells.forEach((door) => {
+      door.meshes.forEach((shell) => {
+        tintExteriorMaterial(shell.material, nextColor);
+      });
+    });
+  }, [exteriorColor, fakeDoorShells]);
+
+  useEffect(() => {
     applyInteriorColor(model, interiorColorKey);
   }, [interiorColorKey, model]);
 
@@ -321,6 +481,14 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
 
   useEffect(() => {
     doorInteractionsRef.current = buildDoorInteractions(model);
+
+    if (doorInteractionsRef.current.length > 0) {
+      setFakeDoorShells([]);
+      setDoorStates({});
+      return;
+    }
+
+    setFakeDoorShells(buildFakeDoorShells(model));
     setDoorStates({});
   }, [model]);
 
@@ -335,15 +503,15 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
 
     if (doorInteractionsRef.current.length > 0) return;
 
-    fallbackDoorConfigs.forEach((config) => {
-      const proxyDoor = proxyDoorRefs.current[config.key];
-      if (!proxyDoor) return;
+    fakeDoorShells.forEach((door) => {
+      const fakeDoor = fakeDoorRefs.current[door.key];
+      if (!fakeDoor) return;
 
-      const targetRotationY = viewMode === 'exterior' && doorStates[config.key]
-        ? config.direction * (Math.PI / 3.5)
+      const targetRotationY = viewMode === 'exterior' && doorStates[door.key]
+        ? door.openAngle
         : 0;
 
-      proxyDoor.rotation.y = THREE.MathUtils.damp(proxyDoor.rotation.y, targetRotationY, 6, delta);
+      fakeDoor.rotation.y = THREE.MathUtils.damp(fakeDoor.rotation.y, targetRotationY, 6, delta);
     });
   });
 
@@ -368,27 +536,37 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
     <group ref={groupRef} rotation={[0, viewMode === 'interior' ? Math.PI : Math.PI / 3, 0]} onClick={handleDoorToggle}>
       <primitive object={model} />
       {viewMode === 'exterior' && doorInteractionsRef.current.length === 0
-        ? fallbackDoorConfigs.map((config) => (
+        ? fakeDoorShells.map((door) => (
             <group
-              key={config.key}
-              position={config.hingePosition}
+              key={door.key}
+              position={door.hingePivot.toArray()}
               ref={(node) => {
                 if (node) {
-                  proxyDoorRefs.current[config.key] = node;
+                  fakeDoorRefs.current[door.key] = node;
                 }
               }}
             >
-              <mesh position={config.panelPosition} castShadow receiveShadow>
-                <boxGeometry args={config.panelSize} />
-                <meshStandardMaterial color={exteriorColor} metalness={0.35} roughness={0.35} />
-              </mesh>
-              <mesh position={config.handlePosition} castShadow receiveShadow onClick={(event) => {
-                event.stopPropagation();
-                toggleDoor(config.key);
-              }}
+              {door.meshes.map((shell, index) => (
+                <mesh
+                  // Geometry is kept in model-local space and offset back by the hinge
+                  // pivot so the group can rotate it like a detached door.
+                  key={`${door.key}-${index}`}
+                  geometry={shell.geometry}
+                  material={shell.material}
+                  position={door.hingePivot.clone().multiplyScalar(-1).toArray()}
+                  castShadow
+                  receiveShadow
+                />
+              ))}
+              <mesh
+                position={door.hotspot.clone().sub(door.hingePivot).toArray()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleDoor(door.key);
+                }}
               >
-                <boxGeometry args={[config.panelSize[0] * 0.35, config.panelSize[1] * 0.04, config.panelSize[2] * 0.14]} />
-                <meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.18} />
+                <boxGeometry args={door.hotspotSize} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} />
               </mesh>
             </group>
           ))
