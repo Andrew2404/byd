@@ -452,6 +452,9 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
 
     model.scale.setScalar(fittedScale);
     model.position.set(-center.x * fittedScale, -box.min.y * fittedScale, -center.z * fittedScale);
+
+    const fittedBox = new THREE.Box3().setFromObject(model);
+    setFallbackDoorConfigs(buildFallbackDoorConfigs(fittedBox));
   }, [model]);
 
   useEffect(() => {
