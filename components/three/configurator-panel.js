@@ -6,35 +6,36 @@ import { formatCurrency } from '@/lib/utils';
 
 const DESKTOP_CONTROL_HINTS = [
   {
-    label: 'Left click + drag',
-    description: 'Rotate model',
-    icon: (
-      <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4">
-        <path d="M12 2v4M12 18v4M4 12H2m20 0h-2m-2.8-5.2-1.4 1.4m-7.6 7.6-1.4 1.4m10.4 0-1.4-1.4m-7.6-7.6-1.4-1.4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      </svg>
-    ),
+    label: 'Rotate',
+    description: 'Left click + drag',
+    highlight: 'left',
   },
   {
-    label: 'Right click + drag',
-    description: 'Pan camera',
-    icon: (
-      <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4">
-        <path d="M12 3v18m0-18 3.2 3.2M12 3 8.8 6.2M12 21l3.2-3.2M12 21l-3.2-3.2M3 12h18m-18 0 3.2-3.2M3 12l3.2 3.2M21 12l-3.2-3.2M21 12l-3.2 3.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
+    label: 'Drag',
+    description: 'Right click + drag',
+    highlight: 'right',
   },
   {
-    label: 'Scroll wheel',
-    description: 'Zoom in / out',
-    icon: (
-      <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4">
-        <path d="M7 9a5 5 0 0 1 10 0v6a5 5 0 0 1-10 0V9Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M12 8v4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
+    label: 'Zoom',
+    description: 'Scroll wheel',
+    highlight: 'wheel',
   },
 ];
+
+function MouseHintIcon({ highlight }) {
+  const accentClass = 'fill-aurora/80';
+  const mutedClass = 'fill-slate-500/20 dark:fill-white/15';
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4">
+      <path d="M7 8.5a5 5 0 1 1 10 0v7a5 5 0 1 1-10 0v-7Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 8.5v5.2" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.6" />
+      <rect x="8.1" y="6.2" width="3.2" height="3.6" rx="0.8" className={highlight === 'left' ? accentClass : mutedClass} />
+      <rect x="12.7" y="6.2" width="3.2" height="3.6" rx="0.8" className={highlight === 'right' ? accentClass : mutedClass} />
+      <rect x="11.2" y="8.8" width="1.6" height="2.6" rx="0.8" className={highlight === 'wheel' ? accentClass : mutedClass} />
+    </svg>
+  );
+}
 
 export function ConfiguratorPanel({ vehicle, locale }) {
   const [selectedTrim, setSelectedTrim] = useState(vehicle.trims[0]);
@@ -63,7 +64,7 @@ export function ConfiguratorPanel({ vehicle, locale }) {
         </div>
       </div>
       <div className="mb-8 grid gap-4 xl:grid-cols-4">
-        <div className="premium-card xl:col-span-1">
+        <div className="premium-card flex flex-col xl:col-span-1">
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Trim</p>
           <div className="space-y-3">
             {vehicle.trims.map((trim) => (
@@ -77,11 +78,11 @@ export function ConfiguratorPanel({ vehicle, locale }) {
             <button type="button" onClick={() => setViewMode('exterior')} className={`secondary-button ${viewMode === 'exterior' ? '!border-aurora !text-aurora' : ''}`}>Exterior</button>
             <button type="button" onClick={() => setViewMode('interior')} className={`secondary-button ${viewMode === 'interior' ? '!border-aurora !text-aurora' : ''}`}>Interior</button>
           </div>
-          <div className="mt-7 hidden space-y-3 border-t border-slate-200/80 pt-5 text-sm text-slate-500 dark:border-white/10 dark:text-slate-300 xl:block">
+          <div className="mt-auto hidden space-y-3 border-t border-slate-200/80 pt-5 text-sm text-slate-500 dark:border-white/10 dark:text-slate-300 xl:block">
             {DESKTOP_CONTROL_HINTS.map((hint) => (
               <div key={hint.label} className="flex items-start gap-3">
                 <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-slate-300/80 text-slate-500 dark:border-white/20 dark:text-slate-200">
-                  {hint.icon}
+                  <MouseHintIcon highlight={hint.highlight} />
                 </span>
                 <p className="leading-tight">
                   <span className="block text-slate-700 dark:text-slate-100">{hint.label}</span>
