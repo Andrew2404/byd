@@ -7,17 +7,14 @@ import { formatCurrency } from '@/lib/utils';
 const DESKTOP_CONTROL_HINTS = [
   {
     label: 'Rotate',
-    description: 'Left click + drag',
     highlight: 'left',
   },
   {
     label: 'Drag',
-    description: 'Right click + drag',
     highlight: 'right',
   },
   {
     label: 'Zoom',
-    description: 'Scroll wheel',
     highlight: 'wheel',
   },
 ];
@@ -28,7 +25,7 @@ function MouseHintIcon({ highlight }) {
   const dividerClass = 'stroke-white/75 dark:stroke-slate-300/80';
 
   return (
-    <svg viewBox="0 0 48 64" aria-hidden className="h-11 w-9">
+    <svg viewBox="0 0 48 64" aria-hidden className="h-12 w-10">
       <path d="M6 26V20c0-10 8-18 18-18s18 8 18 18v6H6Z" className={bodyClass} />
       <path d="M6 30h36v16c0 10-8 18-18 18S6 56 6 46V30Z" className={bodyClass} />
       <path d="M6 26V20c0-10 8-18 18-18v24H6Z" className={highlight === 'left' ? accentClass : bodyClass} />
@@ -84,7 +81,7 @@ export function ConfiguratorPanel({ vehicle, locale }) {
           <div className="mt-auto hidden space-y-4 border-t border-slate-200/80 pt-5 dark:border-white/10 xl:block">
             {DESKTOP_CONTROL_HINTS.map((hint) => (
               <div key={hint.label} className="flex items-center gap-3">
-                <span className="flex h-12 w-10 items-center justify-center rounded-md border border-slate-300/80 bg-white/95 dark:border-white/20 dark:bg-slate-900/90">
+                <span className="flex h-14 w-12 items-center justify-center rounded-md border border-slate-300/80 bg-white/95 dark:border-white/20 dark:bg-slate-900/90">
                   <MouseHintIcon highlight={hint.highlight} />
                 </span>
                 <p className="text-[1.65rem] font-semibold uppercase leading-none tracking-wide text-slate-200">{hint.label}</p>
