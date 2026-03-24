@@ -284,6 +284,7 @@ function buildFakeDoorShells(model, layout = DEFAULT_FAKE_DOOR_LAYOUT) {
   return Object.values(fallbackDoors).filter((door) => door.meshes.length > 0);
 }
 
+
 function getLookAngles(position, target) {
   const direction = new THREE.Vector3().subVectors(new THREE.Vector3(...target), new THREE.Vector3(...position)).normalize();
 
@@ -451,6 +452,9 @@ function VehicleModel({ glbPath, viewMode, exteriorColor, interiorColorKey, whee
 
     model.scale.setScalar(fittedScale);
     model.position.set(-center.x * fittedScale, -box.min.y * fittedScale, -center.z * fittedScale);
+
+    const fittedBox = new THREE.Box3().setFromObject(model);
+    setFallbackDoorConfigs(buildFallbackDoorConfigs(fittedBox));
   }, [model]);
 
   useEffect(() => {
