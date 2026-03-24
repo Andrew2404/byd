@@ -53,7 +53,6 @@ export function ConfiguratorPanel({ vehicle, locale }) {
             exteriorColor={selectedColor.hex}
             interiorColorKey={selectedInterior.key}
             wheelKey={selectedWheel.key}
-            hotspots={vehicle.asset3d.hotspots.map((item) => ({ ...item, label: item.label[locale] }))}
           />
         </div>
       </div>
