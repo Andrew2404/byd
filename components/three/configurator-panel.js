@@ -23,19 +23,16 @@ const DESKTOP_CONTROL_HINTS = [
 ];
 
 function MouseHintIcon({ highlight }) {
-  const accentClass = 'fill-[#ff2d2d]';
-  const bodyClass = 'fill-slate-700 dark:fill-slate-600';
-  const dividerClass = 'stroke-white/75 dark:stroke-slate-300/80';
+  const accentClass = 'fill-aurora/80';
+  const mutedClass = 'fill-slate-500/20 dark:fill-white/15';
 
   return (
-    <svg viewBox="0 0 48 64" aria-hidden className="h-11 w-9">
-      <path d="M6 26V20c0-10 8-18 18-18s18 8 18 18v6H6Z" className={bodyClass} />
-      <path d="M6 30h36v16c0 10-8 18-18 18S6 56 6 46V30Z" className={bodyClass} />
-      <path d="M6 26V20c0-10 8-18 18-18v24H6Z" className={highlight === 'left' ? accentClass : bodyClass} />
-      <path d="M42 26V20c0-10-8-18-18-18v24h18Z" className={highlight === 'right' ? accentClass : bodyClass} />
-      <rect x="20" y="7" width="8" height="19" rx="4" className={highlight === 'wheel' ? accentClass : bodyClass} />
-      <path d="M24 4v24" className={dividerClass} strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M6 28h36" className={dividerClass} strokeWidth="1.6" strokeLinecap="round" />
+    <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4">
+      <path d="M7 8.5a5 5 0 1 1 10 0v7a5 5 0 1 1-10 0v-7Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 8.5v5.2" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.6" />
+      <rect x="8.1" y="6.2" width="3.2" height="3.6" rx="0.8" className={highlight === 'left' ? accentClass : mutedClass} />
+      <rect x="12.7" y="6.2" width="3.2" height="3.6" rx="0.8" className={highlight === 'right' ? accentClass : mutedClass} />
+      <rect x="11.2" y="8.8" width="1.6" height="2.6" rx="0.8" className={highlight === 'wheel' ? accentClass : mutedClass} />
     </svg>
   );
 }
@@ -81,13 +78,16 @@ export function ConfiguratorPanel({ vehicle, locale }) {
             <button type="button" onClick={() => setViewMode('exterior')} className={`secondary-button ${viewMode === 'exterior' ? '!border-aurora !text-aurora' : ''}`}>Exterior</button>
             <button type="button" onClick={() => setViewMode('interior')} className={`secondary-button ${viewMode === 'interior' ? '!border-aurora !text-aurora' : ''}`}>Interior</button>
           </div>
-          <div className="mt-auto hidden space-y-4 border-t border-slate-200/80 pt-5 dark:border-white/10 xl:block">
+          <div className="mt-auto hidden space-y-3 border-t border-slate-200/80 pt-5 text-sm text-slate-500 dark:border-white/10 dark:text-slate-300 xl:block">
             {DESKTOP_CONTROL_HINTS.map((hint) => (
-              <div key={hint.label} className="flex items-center gap-3">
-                <span className="flex h-12 w-10 items-center justify-center rounded-md border border-slate-300/80 bg-white/95 dark:border-white/20 dark:bg-slate-900/90">
+              <div key={hint.label} className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-slate-300/80 text-slate-500 dark:border-white/20 dark:text-slate-200">
                   <MouseHintIcon highlight={hint.highlight} />
                 </span>
-                <p className="text-[1.65rem] font-semibold uppercase leading-none tracking-wide text-slate-200">{hint.label}</p>
+                <p className="leading-tight">
+                  <span className="block text-slate-700 dark:text-slate-100">{hint.label}</span>
+                  <span>{hint.description}</span>
+                </p>
               </div>
             ))}
           </div>
